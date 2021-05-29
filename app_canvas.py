@@ -4,147 +4,19 @@ import matplotlib.pyplot as plt  # type: ignore
 import numpy as np  # type: ignore
 import requests
 import streamlit as st  # type: ignore
-import tensorflow as tf  # type: ignore
 from PIL import Image  # type: ignore
 from streamlit_drawable_canvas import st_canvas  # type: ignore
 
-
-class Predictor:
-    def __init__(self):
-        super(Predictor, self).__init__()
-        self.characters = [
-            "]",
-            '"',
-            "#",
-            "&",
-            "'",
-            "(",
-            ")",
-            "*",
-            "+",
-            ",",
-            "-",
-            ".",
-            "/",
-            "0",
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-            "7",
-            "8",
-            "9",
-            ":",
-            ";",
-            "?",
-            "A",
-            "B",
-            "C",
-            "D",
-            "E",
-            "F",
-            "G",
-            "H",
-            "I",
-            "J",
-            "K",
-            "L",
-            "M",
-            "N",
-            "O",
-            "P",
-            "Q",
-            "R",
-            "S",
-            "T",
-            "U",
-            "V",
-            "W",
-            "X",
-            "Y",
-            "Z",
-            "[",
-            "!",
-        ]
-        # Mapping characters to integers
-        char_to_num = tf.keras.layers.experimental.preprocessing.StringLookup(
-            vocabulary=list(self.characters), num_oov_indices=0, mask_token=None
-        )
-        # Mapping integers back to original characters
-        self.num_to_char = tf.keras.layers.experimental.preprocessing.StringLookup(
-            vocabulary=char_to_num.get_vocabulary(), invert=True, mask_token=None
-        )
-
-    def encode_single_sample(self, file_name):
-        """
-        Processes a single image
-        """
-        # 1. Read image
-        img = tf.io.read_file(file_name)
-        # 2. Decode and convert to grayscale
-        img = tf.io.decode_png(img, channels=1)
-        # 3. Convert to float32 in [0, 1] range
-        img = tf.image.convert_image_dtype(img, tf.float32)
-        # 4. Resize to the desired size
-        img = tf.image.resize(img, [250, 600])
-        # 5. Transpose the image because we want the time
-        # dimension to correspond to the width of the image.
-        img = tf.transpose(img, perm=[1, 0, 2])
-        return img.numpy().tolist()
-
-    def decode_predictions(self, pred):
-        """
-        Greedy Decoding
-        """
-        input_len = np.ones(pred.shape[0]) * pred.shape[1]
-        results = tf.keras.backend.ctc_decode(
-            pred, input_length=input_len, greedy=True
-        )[0][0][:, :10]
-        # Iterate over the results and get back the text
-        output_text = []
-        for res in results:
-            # Hack - res+1 below due to shift in char-num mapping. [UNK] token is responsible
-            res = (
-                tf.strings.reduce_join(self.num_to_char(res + 1))
-                .numpy()
-                .decode("utf-8")
-            )
-            output_text.append(res)
-        return output_text
-
-    def decode_predictions_beam(self, pred, beam_width=10, top_paths=1):
-        """
-        Greedy Decoding
-        """
-        input_len = np.ones(pred.shape[0]) * pred.shape[1]
-        results, _ = tf.keras.backend.ctc_decode(
-            pred,
-            input_length=input_len,
-            greedy=False,
-            beam_width=beam_width,
-            top_paths=top_paths,
-        )
-        # Iterate over the results and get back the text
-        output_text = []
-        for res in results:
-            res = res[:, :10]
-            # Hack - res+1 below due to shift in char-num mapping. [UNK] token is responsible
-            res = (
-                tf.strings.reduce_join(self.num_to_char(res + 1))
-                .numpy()
-                .decode("utf-8")
-            )
-            output_text.append(res)
-        return output_text
+from predictor import Predictor  # type: ignore
+from image_processor import get_splits
 
 
 if __name__ == "__main__":
     predictor = Predictor()
-    endpoint = "http://localhost:8501/v1/models/handwritten_ocr:predict"
+    endpoint = "http://localhost:8501/v1/models/handwritten_ocr/versions/1:predict"
     # title
     st.title("Handwritten OCR - TensorFlow Serving")
+    st.write("Model is trained on a word-level. In case a sentence is passed, it will make prediction per word")
 
     # sidebar
     technique = st.sidebar.selectbox(
@@ -174,37 +46,42 @@ if __name__ == "__main__":
             img = Image.fromarray(img.astype(np.uint8)).convert("RGB")
 
             # Temporarily saving as RGB
-            filename = "temp_2.png"
+            temp_path = "temp.png"
             plt.imshow(img)
             plt.axis("off")
-            plt.savefig(filename)
+            plt.savefig(temp_path)
 
-            # Converting to desired format
-            input_data = np.expand_dims(
-                predictor.encode_single_sample(filename), axis=0
-            )
+            splits = get_splits(temp_path)
+            for idx, split in enumerate(splits):
+                st.image(split, caption=split.shape)
+                plt.imshow(split)
+                plt.axis("off")
+                plt.savefig(f"{idx}.png")
 
-            # Prepare the data that is going to be sent in the POST request
-            json_data = json.dumps({"instances": input_data.tolist()})
-            headers = {"content-type": "application/json"}
-
-            # Send the request to the Prediction API
-            response = requests.post(endpoint, data=json_data, headers=headers)
-            interim = np.array(response.json()["predictions"][0])
-
-            # Decoding based on technique
-            if technique == "Greedy Search":
-                prediction = predictor.decode_predictions(
-                    np.expand_dims(interim, axis=0)
-                )[0]
-                prediction = prediction.replace("[UNK]", "").replace("]", "")
-                st.success(f"Prediction: {prediction}")
-            else:
-                predictions = predictor.decode_predictions_beam(
-                    np.expand_dims(interim, axis=0), beam_width, top_paths
+                # Converting to desired format
+                input_data = np.expand_dims(
+                    predictor.encode_single_sample(f"{idx}.png"), axis=0
                 )
-                predictions = [
-                    x.replace("[UNK]", "").replace("]", "") for x in predictions
-                ]
-                for idx, pred in enumerate(predictions):
-                    st.write(f"{idx}: {pred}")
+
+                # Prepare the data that is going to be sent in the POST request
+                json_data = json.dumps({"instances": input_data.tolist()})
+                headers = {"content-type": "application/json"}
+
+                # Send the request to the Prediction API
+                response = requests.post(endpoint, data=json_data, headers=headers)
+                interim = np.array(response.json()["predictions"][0])
+
+                # Decoding based on technique
+                if technique == "Greedy Search":
+                    prediction = predictor.decode_predictions(
+                        np.expand_dims(interim, axis=0)
+                    )[0]
+                    prediction = prediction.replace("[UNK]", "")
+                    st.success(f"Prediction: {prediction}")
+                else:
+                    predictions = predictor.decode_predictions_beam(
+                        np.expand_dims(interim, axis=0), beam_width, top_paths
+                    )
+                    predictions = [x.replace("[UNK]", "") for x in predictions]
+                    for i, pred in enumerate(predictions):
+                        st.write(f"{i}: {pred}")

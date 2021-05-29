@@ -85,7 +85,4 @@ target/
 # Mypy cache
 .mypy_cache/
 
-# Ignore train results
-crnn_*
-*.png
-submission.csv
+temp*
