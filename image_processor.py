@@ -33,7 +33,7 @@ def get_splits(path, plot=False):
             try:
                 # padding to right & bottom
                 word_img = np.pad(word_img, ((0, 250-h), (0, 600-w)),
-                            'constant',constant_values=255)
+                            'constant', constant_values=255)
             except Exception as e:
                 traceback.print_exc()
             image_splits.append(word_img)

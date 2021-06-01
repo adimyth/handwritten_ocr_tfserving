@@ -1,3 +1,4 @@
+import os
 import json
 
 import matplotlib.pyplot as plt  # type: ignore
@@ -47,13 +48,12 @@ if __name__ == "__main__":
 
             # Temporarily saving as RGB
             temp_path = "temp.png"
-            plt.imshow(img)
-            plt.axis("off")
-            plt.savefig(temp_path)
+            img.convert("RGB").save(temp_path)
 
             splits = get_splits(temp_path)
             for idx, split in enumerate(splits):
                 st.image(split, caption=split.shape)
+                split = Image.fromarray(split.astype(np.uint8)).convert("RGB")
                 plt.imshow(split)
                 plt.axis("off")
                 plt.savefig(f"{idx}.png")
@@ -85,3 +85,6 @@ if __name__ == "__main__":
                     predictions = [x.replace("[UNK]", "") for x in predictions]
                     for i, pred in enumerate(predictions):
                         st.write(f"{i}: {pred}")
+                # remove after usage
+                os.remove(f"{idx}.png")
+            os.remove(temp_path)

@@ -154,3 +154,13 @@ docker run -d --name tfserving -p 8501:8501 \
 
 * HealtCheck URL - http://localhost:8501/v1/models/handwritten_ocr/versions/<version_number>
 * Prediction URL - http://localhost:8501/v1/models/handwritten_ocr/versions/<version_number>:predict
+
+### File Picker
+Created a file-picker example.
+
+![](resources/file_picker_example.png)
+
+To run locally -
+```bash
+poetry run streamlit run app_file_picker.py
+```

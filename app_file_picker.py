@@ -1,3 +1,4 @@
+import os
 import json
 
 import matplotlib.pyplot as plt  # type: ignore
@@ -30,9 +31,7 @@ if __name__ == "__main__":
         else:
             # save image temporarily in RGB
             temp_path = "temp.png"
-            plt.imshow(img.convert("RGB"))
-            plt.axis("off")
-            plt.savefig(temp_path)
+            Image.open(uploaded_file).convert("RGB").save(temp_path)
             input_data = np.expand_dims(
                 predictor.encode_single_sample(temp_path), axis=0
             )
@@ -49,3 +48,4 @@ if __name__ == "__main__":
             ]
             prediction = prediction.replace("[UNK]", "").replace("]", "")
             st.success(f"Prediction: {prediction}")
+        os.remove(temp_path)
