@@ -158,7 +158,7 @@ docker run -d --name tfserving -p 8501:8501 \
 ### File Picker
 Created a file-picker example.
 
-![](resources/file_picker_example.png)
+![](resources/file_picke.mov)
 
 To run locally -
 ```bash
