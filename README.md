@@ -156,11 +156,17 @@ docker run -d --name tfserving -p 8501:8501 \
 * Prediction URL - http://localhost:8501/v1/models/handwritten_ocr/versions/<version_number>:predict
 
 ### File Picker
-Created a file-picker example.
-
-![](resources/file_picke.mov)
+https://user-images.githubusercontent.com/26377913/120889568-74bea580-c61b-11eb-8dec-997a39913236.mov
 
 To run locally -
 ```bash
 poetry run streamlit run app_file_picker.py
+```
+
+### Canvas Draw 
+https://user-images.githubusercontent.com/26377913/120889358-468c9600-c61a-11eb-90fc-3fef981e465c.mov
+
+To run locally -
+```bash
+poetry run streamlit run app_canvas.py
 ```
